@@ -58,9 +58,24 @@ Performed initial analysis to identify data quality issues:
 * Missing prices and total_amount
 * Duplicate order records
 
----
+## Data Cleaning Strategy (Business-Aligned)
 
-## 🧹 Step 2: Data Cleaning & Standardization
+After performing data profiling, key data quality issues were identified:
+- NULL customer IDs and names
+- Invalid discount values (text)
+- Multiple date formats
+- Negative quantities
+
+Instead of deleting rows, stakeholder-aligned cleaning rules were applied:
+- NULL/blank customer fields replaced with 'Unknown'
+- Invalid discounts converted to NULL
+- Negative quantities standardized using ABS()
+- Dates standardized using TRY_TO_DATE()
+- Duplicate records removed using ROW_NUMBER()
+
+No raw records were deleted to preserve data completeness and auditability.
+
+## Step 2: Data Cleaning & Standardization
 
 Key transformations applied:
 
