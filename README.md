@@ -2,45 +2,51 @@
 
 ## Project Overview
 
-This project demonstrates an end-to-end data pipeline in Snowflake, starting from messy raw retail data and transforming it into a clean, analytics-ready dataset with a scalable Star Schema.
+This project demonstrates an end-to-end data pipeline in Snowflake, transforming messy raw retail sales data into a clean, validated, and analytics-ready dataset using a scalable Star Schema.
 
 The solution follows a real-world enterprise data warehouse architecture:
-**RAW → STAGING → ANALYTICS**
+
+RAW → STAGING → ANALYTICS
 
 The pipeline includes:
 
-* Data ingestion from Excel/CSV into Snowflake
-* Data profiling (data quality assessment)
-* Data cleaning & standardization
-* Deduplication using business keys
-* Dimensional modeling (Fact & Dimension tables with surrogate keys)
-* Documentation using GitHub for version control and project storytelling
+- Data ingestion from Excel/CSV into Snowflake
+- Data profiling (data quality assessment)
+- Data cleaning & standardization
+- Deduplication using business-key logic
+- Dimensional modeling (Fact & Dimension tables with surrogate keys)
+- SCD-ready dimension design
+- Data quality & validation checks
+- GitHub-based version control and documentation
 
 ---
 
 ## Objective
 
-Transform messy raw retail sales data into a clean, reliable, and analysis-ready dataset while designing a future-proof dimensional model aligned with industry best practices used in real data warehouses.
+Transform messy raw retail sales data into a reliable and analysis-ready dataset while designing a future-proof dimensional model aligned with real-world data warehouse best practices.
+
+The goal is not just cleaning data, but building a scalable analytics foundation similar to enterprise ETL pipelines.
 
 ---
 
 ## Tools & Technologies Used
 
-* SQL (Snowflake SQL)
-* Snowflake Cloud Data Warehouse
-* GitHub (Version Control & Documentation)
-* Excel (Messy Raw Data Simulation)
-* Dimensional Modeling (Star Schema Design)
+- SQL (Snowflake SQL)
+- Snowflake Cloud Data Warehouse
+- GitHub (Version Control & Documentation)
+- Excel / CSV (Raw Data Simulation)
+- Dimensional Modeling (Star Schema)
+- Data Quality Validation Techniques
 
 ---
 
 ## Data Warehouse Architecture (Layered Design)
 
-This project is designed using a modern layered architecture similar to real-world companies:
+This project uses a modern layered architecture similar to enterprise data platforms:
 
-* **RAW_LAYER** → Stores raw untouched source data
-* **STAGING_LAYER** → Cleaned, standardized, and deduplicated data
-* **ANALYTICS_LAYER** → Star schema (Fact & Dimension tables)
+- RAW_LAYER → Stores raw, untouched source data (audit-friendly)
+- STAGING_LAYER → Cleaned, standardized, and deduplicated data
+- ANALYTICS_LAYER → Star schema (Fact & Dimension tables)
 
 This separation ensures data auditability, scalability, and maintainability.
 
@@ -48,17 +54,18 @@ This separation ensures data auditability, scalability, and maintainability.
 
 ## Project Structure
 
-sql-data-cleaning/
-│
+sql-data-warehouse-pipeline/
+
 ├── data/
-│   ├── messy_retail_data_3000_rows.xlsx   # Raw messy dataset (source)
-│   └── raw_data.csv                       # Converted CSV for Snowflake loading
+│   ├── messy_retail_data_3000_rows.xlsx   # Raw dataset
+│   └── raw_data.csv                       # CSV for Snowflake ingestion
 │
 ├── sql/
-│   ├── 01_data_profiling.sql              # Data quality analysis
+│   ├── 01_data_profiling.sql              # Raw data analysis
 │   ├── 02_data_cleaning.sql               # Cleaning & standardization logic
 │   ├── 03_deduplication.sql               # Duplicate removal logic
-│   └── 04_star_schema.sql                 # Fact & Dimension table creation
+│   ├── 04_star_schema.sql                 # Dimension & Fact table creation
+│   └── 05_data_quality_checks.sql         # Validation & integrity checks
 │
 └── README.md                              # Project Documentation
 
@@ -66,36 +73,19 @@ sql-data-cleaning/
 
 ## Step 1: Data Profiling (RAW Layer)
 
-Initial profiling was performed on the raw dataset to identify real-world data quality issues before applying any transformations.
+Initial profiling was performed to identify real-world data quality issues before applying transformations.
 
-### Key Issues Identified:
+Key issues identified:
 
-* Multiple date formats (DD-MM-YYYY, YYYY/MM/DD, invalid dates)
-* NULL and blank customer_id and customer_name
-* Inconsistent region values (north, NORTH, South, south)
-* Negative quantity values
-* Text values in discount column (e.g., 'abc')
-* Missing price and total_amount values
-* Potential duplicate records based on business key (order_id)
+- Multiple date formats and invalid dates
+- NULL and blank customer_id and customer_name
+- Inconsistent region values (north, NORTH, South, south)
+- Negative quantity values
+- Text values in discount column (e.g., 'abc')
+- Missing price and total_amount values
+- Duplicate records based on business key (order_id)
 
-Instead of directly cleaning the data, profiling results were documented and treated as stakeholder input for business-aligned decisions.
-
----
-
-## Stakeholder-Aligned Cleaning Strategy (Real-World Approach)
-
-After profiling, cleaning rules were designed based on realistic stakeholder assumptions rather than blindly deleting data.
-
-Business-aligned decisions taken:
-
-* NULL/blank customer fields replaced with 'Unknown'
-* Invalid discount values converted to NULL (not forced to 0)
-* Negative quantities standardized using ABS()
-* Multiple date formats standardized using TRY_TO_DATE()
-* Duplicates handled using deterministic window logic
-* No raw rows were deleted to preserve data completeness and auditability
-
-This mirrors how real organizations handle messy production data.
+Profiling insights were used to design stakeholder-aligned cleaning rules instead of blindly deleting data.
 
 ---
 
@@ -103,34 +93,32 @@ This mirrors how real organizations handle messy production data.
 
 Key transformations applied:
 
-* Standardized date formats using TRY_TO_DATE + COALESCE
-* Handled blank strings using NULLIF(TRIM(column), '')
-* Replaced missing customer values with 'Unknown'
-* Standardized region names using INITCAP()
-* Converted negative quantities using ABS()
-* Cleaned discount column using TRY_CAST()
-* Recalculated total_amount using business logic validation
+- Standardized date formats using TRY_TO_DATE + COALESCE
+- Handled blank strings using NULLIF(TRIM(column), '')
+- Replaced missing customer values with 'Unknown'
+- Standardized region names using INITCAP()
+- Converted negative quantities using ABS()
+- Cleaned discount values using TRY_TO_NUMBER()
+- Recalculated total_amount using business validation logic
 
-Business Formula Used:
+Business formula used:
+
 total_amount = quantity * price * (1 - discount)
 
 This ensures analytical accuracy instead of trusting dirty source values.
 
 ---
 
-## Step 3: Deduplication (Enterprise-Grade Logic)
+## Step 3: Deduplication
 
-Duplicates were removed using a business-key driven approach.
+Duplicates were removed using deterministic business-key logic:
 
-* Business Key: order_id
-* Rule: Keep the latest valid record per order
-* Technique: ROW_NUMBER() OVER (PARTITION BY order_id ORDER BY order_date DESC)
+- Business Key: order_id
+- Technique: ROW_NUMBER() OVER (PARTITION BY order_id ORDER BY order_date DESC)
+- Rule: Keep the latest valid record per order
+- Valid dates prioritized over NULL dates
 
-Additional logic ensures:
-
-* Valid dates are prioritized over NULL dates
-* Deterministic and audit-friendly record selection
-* Consistency with real-world ETL pipelines
+This mirrors real-world ETL deduplication practices.
 
 ---
 
@@ -138,32 +126,50 @@ Additional logic ensures:
 
 After cleaning and deduplication, a scalable Star Schema was designed for analytics and BI reporting.
 
-### Fact Table
+Fact Table:
 
-* fact_sales_transaction
-  (Grain: One row per order_id per product)
+- fact_sales
+  - Grain: One row per order line item
+  - Measures: quantity, price, discount, total_amount
+  - Foreign Keys: customer_sk, product_sk, category_sk, date_key
+  - Degenerate Dimension: order_id
 
-### Dimension Tables
+Dimension Tables:
 
-* dim_customer (SCD Type 2 Ready)
-* dim_product (SCD Type 2 Ready)
-* dim_category (SCD Type 2 Ready)
-* dim_date
+- dim_customer (SCD Type 2 Ready)
+- dim_product (SCD Type 2 Ready)
+- dim_category (SCD Type 2 Ready)
+- dim_date (Static Calendar Dimension)
 
-### Surrogate keys were implemented in dimension tables using Snowflake SEQUENCE for the following reasons:
+Surrogate keys were implemented using Snowflake SEQUENCE to:
 
-* Future-proof Slowly Changing Dimension (SCD) support
-* Better join performance compared to natural keys
-* Handles NULL and “Unknown” dimension members efficiently
-* Industry best practice in data warehouse modeling
-* Decouples business keys from technical keys
+- Support future Slowly Changing Dimensions (SCD)
+- Improve join performance vs natural keys
+- Handle NULL and “Unknown” members efficiently
+- Decouple business keys from technical warehouse keys
+
+Unknown dimension members (SK = 0) were created to prevent NULL foreign keys in the fact table.
+
+---
+
+## Step 5: Data Quality & Validation
+
+A dedicated validation script ensures:
+
+- Record count consistency across layers
+- NULL checks on critical business fields
+- Dimension load verification
+- Foreign key integrity checks in fact table
+- Revenue and measure consistency validation
+
+This simulates real-world production data validation practices.
 
 ---
 
 ## Data Quality Summary
 
 | Column        | Issues Observed               |
-| ------------- | ----------------------------- |
+|---------------|-------------------------------|
 | order_date    | NULL values & invalid formats |
 | customer_id   | NULL and blank values         |
 | customer_name | Missing values                |
@@ -175,29 +181,30 @@ After cleaning and deduplication, a scalable Star Schema was designed for analyt
 
 ## Key Learnings
 
-* Real-world data is always messy and incomplete
-* Importance of stakeholder-driven data cleaning decisions
-* Advanced NULL handling using COALESCE, NULLIF, and TRY_CAST
-* Enterprise deduplication using ROW_NUMBER()
-* Snowflake-specific data transformation techniques
-* Designing layered data architecture (RAW → STAGING → ANALYTICS)
-* Building Star Schema with surrogate keys for scalability
-* End-to-end data pipeline thinking instead of just “data cleaning”
+- Real-world data is messy and incomplete
+- Importance of stakeholder-driven cleaning decisions
+- Advanced NULL handling using COALESCE, NULLIF, and TRY functions
+- Enterprise deduplication using window functions
+- Designing layered architecture (RAW → STAGING → ANALYTICS)
+- Building Star Schema with surrogate keys
+- Creating SCD-ready dimension tables for future-proofing
+- Implementing data validation as a final pipeline step
+- Thinking end-to-end like a data warehouse engineer
 
 ---
 
 ## Future Improvements
 
-* Implement full SCD Type 2 logic for dim_customer
-* Add automated data quality validation checks
-* Build Power BI / Tableau dashboard on fact table
-* Add SQL unit tests for data validation
-* Orchestrate pipeline using dbt or Airflow (future scope)
+- Implement full SCD Type 2 change tracking logic
+- Add incremental fact table loading (MERGE-based ETL)
+- Build BI dashboard (Power BI / Tableau)
+- Add automated SQL tests
+- Orchestrate pipeline using dbt or Airflow
 
 ---
 
 ## Author
 
-Jeeri Chaitanya
-Data Analyst | SQL | Snowflake | Data Modeling
+Jeeri Chaitanya  
+Data Analyst | SQL | Snowflake | Data Modeling  
 Focused on building end-to-end analytics pipelines and scalable data warehouse solutions.
